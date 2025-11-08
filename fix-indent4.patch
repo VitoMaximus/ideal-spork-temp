@@ -1,0 +1,10 @@
+--- a/Trading.py
++++ b/Trading.py
+@@ -492,9 +492,9 @@ def main():
+-# Volatility/asset-aware parameterization
+-asset_prof = get_asset_profile(t, d, atrp)
+-ladder = tuple(x * asset_prof["ladder_scale"] for x in ladder)
++        # Volatility/asset-aware parameterization
++        asset_prof = get_asset_profile(t, d, atrp)
++        ladder = tuple(x * asset_prof["ladder_scale"] for x in ladder)
+         long_bias = (emaD == "Buy" and weekly_regime in {"Buy","Neutral"})
