@@ -610,9 +610,9 @@ def main():
         W_AVWAP_L = _anchored_vwap_from_timestamp(df_w if df_w is not None else df_full, tsL_w)
 
         ladder = ladder_profile(t, d, atrp)
-        # Volatility/asset-aware parameterization
-        asset_prof = get_asset_profile(t, d, atrp)
-        ladder = tuple(x * asset_prof["ladder_scale"] for x in ladder)
+                # Volatility/asset-aware parameterization
+                asset_prof = get_asset_profile(t, d, atrp)
+                ladder = tuple(x * asset_prof["ladder_scale"] for x in ladder)
 
         long_bias = (emaD == "Buy" and weekly_regime in {"Buy","Neutral"})
         if long_bias:
