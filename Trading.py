@@ -364,6 +364,59 @@ def ladder_profile(ticker, desc, atr_pct):
         prof = {"low": (0.5,1.0,1.5), "med": (0.6,1.1,1.8), "high": (0.8,1.4,2.2)}[vol]
     return prof
 
+def get_asset_profile(ticker: str, desc: str, atrp: float) -> dict:
+    """Return volatility/asset-aware parameters.
+    Keys: trail_k, ladder_scale, gap_atr_th, volratio_th, rsi_gate,
+          class_label, class_detail, vol_band
+    """
+    cls = "stock"
+    is_etf = _is_etf(ticker, desc, {})
+    is_lev = _is_leveraged_symbol(ticker)
+    is_crypto = _is_crypto(ticker, desc)
+    if is_crypto:   cls = "crypto"
+    elif is_lev:    cls = "levETF"
+    elif is_etf:    cls = "etf"
+
+    a = safe_float(atrp); a = 2.0 if pd.isna(a) else a
+    params = {"trail_k": 1.0, "ladder_scale": 1.0, "gap_atr_th": 0.30, "volratio_th": 1.20, "rsi_gate": 45}
+    band = "med"
+
+    def pack(class_detail=None):
+        return {**params, "class_label": cls, "class_detail": class_detail or cls, "vol_band": band}
+
+    # ETFs
+    if cls == "etf":
+        if a < 1.5: params.update(trail_k=0.9,  ladder_scale=1.00, gap_atr_th=0.25, volratio_th=1.10, rsi_gate=45); band="low"
+        elif a < 4: params.update(trail_k=1.0,  ladder_scale=0.95, gap_atr_th=0.30, volratio_th=1.15, rsi_gate=45); band="med"
+        else:       params.update(trail_k=1.1,  ladder_scale=0.90, gap_atr_th=0.35, volratio_th=1.20, rsi_gate=47); band="high"
+        return pack(f"etf_{band}")
+
+    # Leveraged ETFs
+    if cls == "levETF":
+        if a < 1.5: params.update(trail_k=1.25, ladder_scale=0.90, gap_atr_th=0.35, volratio_th=1.25, rsi_gate=47); band="low"
+        elif a < 4: params.update(trail_k=1.5,  ladder_scale=0.85, gap_atr_th=0.40, volratio_th=1.30, rsi_gate=50); band="med"
+        else:       params.update(trail_k=1.75, ladder_scale=0.80, gap_atr_th=0.45, volratio_th=1.35, rsi_gate=52); band="high"
+        return pack(f"levETF_{band}")
+
+    # Crypto
+    if cls == "crypto":
+        if a < 4:   params.update(trail_k=1.5,  ladder_scale=0.90, gap_atr_th=0.40, volratio_th=1.30, rsi_gate=50); band="low"
+        elif a < 8: params.update(trail_k=1.75, ladder_scale=0.85, gap_atr_th=0.45, volratio_th=1.35, rsi_gate=52); band="med"
+        else:       params.update(trail_k=2.0,  ladder_scale=0.80, gap_atr_th=0.50, volratio_th=1.40, rsi_gate=55); band="high"
+        return pack(f"crypto_{band}")
+
+    # Single stocks (default)
+    if a < 1.5:
+        params.update(trail_k=1.0,  ladder_scale=1.00, gap_atr_th=0.30, volratio_th=1.20, rsi_gate=45); band="low"
+        return pack("stock_low")
+    elif a < 4:
+        params.update(trail_k=1.0,  ladder_scale=0.95, gap_atr_th=0.35, volratio_th=1.25, rsi_gate=47); band="med"
+        return pack("stock_med")
+    else:
+        params.update(trail_k=1.25, ladder_scale=0.85, gap_atr_th=0.40, volratio_th=1.30, rsi_gate=50); band="high"
+        return pack("stock_high")
+
+
 def compute_priority(row, is_etf: bool):
     trend = 0.0
     trend += 30.0 if row.get("EMA_Regime") == "Buy" else 0.0
@@ -557,6 +610,10 @@ def main():
         W_AVWAP_L = _anchored_vwap_from_timestamp(df_w if df_w is not None else df_full, tsL_w)
 
         ladder = ladder_profile(t, d, atrp)
+        # Volatility/asset-aware parameterization
+        asset_prof = get_asset_profile(t, d, atrp)
+        ladder = tuple(x * asset_prof["ladder_scale"] for x in ladder)
+
         long_bias = (emaD == "Buy" and weekly_regime in {"Buy","Neutral"})
         if long_bias:
             entry1 = px - ladder[0]*atr; entry2 = px - ladder[1]*atr; entry3 = px - ladder[2]*atr
