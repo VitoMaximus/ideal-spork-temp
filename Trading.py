@@ -480,6 +480,21 @@ def _resample(df: pd.DataFrame, rule: str):
         out["Volume"] = v.reindex(out.index).fillna(0.0)
     return out
 
+def _monthly_regime_and_ema21(df_full: pd.DataFrame):
+    """Return (monthly_regime_label, EMA21m) from monthly resample of df_full."""
+    try:
+        df_m = _resample(df_full, "M")
+        if df_m is None or df_m.empty or len(df_m) < 10:
+            return "Neutral", np.nan
+        ema21m = float(ta.ema(df_m["Close"], length=21).iloc[-1]) if len(df_m) >= 21 else np.nan
+        if len(df_m) >= 34:
+            r = "Buy" if ta.ema(df_m["Close"], length=8).iloc[-1] >= ta.ema(df_m["Close"], length=34).iloc[-1] else "Sell"
+        else:
+            r = "Neutral"
+        return r, ema21m
+    except Exception:
+        return "Neutral", np.nan
+
 def _earnings_proximity_days(ticker: str):
     try:
         t = yf.Ticker(ticker)
