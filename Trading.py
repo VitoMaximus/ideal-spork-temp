@@ -585,6 +585,8 @@ def main():
             weekly_regime = "Buy" if (len(df_w) >= 34 and ta.ema(df_w["Close"], length=8).iloc[-1] >= ta.ema(df_w["Close"], length=34).iloc[-1]) else (ind.get("Weekly_Regime","Neutral"))
         else:
             EMA21w = np.nan; weekly_regime = ind.get("Weekly_Regime","Neutral")
+            # Monthly regime (EMA8/EMA34 on monthly bars)
+            monthly_regime, EMA21m = _monthly_regime_and_ema21(df_full)
         ema21 = ind.get("EMA21"); atr = ind.get("ATR"); atrp = ind.get("ATR%")
         volratio = ind.get("VolRatio_20d"); udvr = ind.get("UDVR(20d)")
         is_etf = _is_etf(t, d, info); is_crypto = _is_crypto(t, d)
@@ -714,7 +716,7 @@ def main():
             "Novice_Action_Short": novice_short,
             "Novice_Action_Long": long_term,
             "W_Commentary": f"W: {weekly_regime}. Px vs EMA21w: " + (f"{((px/(EMA21w)-1.0)*100.0):+.1f}%" if pd.notna(EMA21w) else "n/a") + ".",
-            "M_Commentary": "M: Neutral. Not enough monthly history.",
+            "M_Commentary": "M: " + str(monthly_regime) + ". Px vs EMA21m: " + (f"{pct(px, EMA21m):+.1f}%" if pd.notna(EMA21m) else "n/a") + ".",  
             "MTF_Compare": f"D/W value-line gaps: {pct(px, ema21):+.1f}% / " + (f"{pct(px, EMA21w):+.1f}%" if pd.notna(EMA21w) else "n/a") + f" - Regimes {emaD}/{weekly_regime}",
             "Priority": round(priority,1),
             "Entry1": entry1, "Entry2": entry2, "Entry3": entry3, "T1": exit1, "T2": exit2, "Stop": stop,
