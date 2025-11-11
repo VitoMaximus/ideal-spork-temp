@@ -593,6 +593,18 @@ def main():
         monthly_regime, EMA21m = _monthly_regime_and_ema21(df_full)
         ema21 = ind.get("EMA21"); atr = ind.get("ATR"); atrp = ind.get("ATR%")
         volratio = ind.get("VolRatio_20d"); udvr = ind.get("UDVR(20d)")
+        # --- Stochastic (14,3,3) ---
+        prof = get_asset_profile(t, d, atrp) if 'get_asset_profile' in globals() else {}
+        st_gate = prof.get("stoch_long_gate", 20)
+        st = _stoch_features(df_full, k=14, d=3, smooth_k=3, gate_long=st_gate)
+        ind.update({
+            "StochK": st["StochK"],
+            "StochD": st["StochD"],
+            "StochCross": st["StochCross"],
+            "Stoch_OS_Up": st["Stoch_OS_Up"],
+            "Stoch_Long_OK": st["Stoch_Long_OK"],
+            "Stoch_Commentary": st["Stoch_Commentary"],
+        })
         # --- BB Squeeze & Band Position ---
         bb_th = get_asset_profile(t, d, atrp).get("bb_squeeze_ratio_th", 0.85) if 'get_asset_profile' in globals() else 0.85
         bb = _bb_features(df_full, length=20, std=2.0, squeeze_ratio_th=bb_th)
@@ -860,6 +872,41 @@ def _bb_features(df: "pd.DataFrame", length: int = 20, std: float = 2.0, squeeze
     except Exception:
         return out
 # --- END helper ---
+# --- Stochastic (14,3,3) helper ---
+from typing import Dict, Any
+def _stoch_features(df: "pd.DataFrame", k: int = 14, d: int = 3, smooth_k: int = 3, gate_long: int = 20) -> Dict[str, Any]:
+    out = {"StochK": np.nan, "StochD": np.nan, "StochCross": "Flat",
+           "Stoch_OS_Up": False, "Stoch_Long_OK": False, "Stoch_Commentary": "Stoch: n/a"}
+    try:
+        if df is None or df.empty or len(df) < max(k + smooth_k + d, 30):
+            return out
+        st = ta.stoch(df["High"], df["Low"], df["Close"], k=k, d=d, smooth_k=smooth_k)
+        if st is None or st.empty:
+            return out
+        kser = st.filter(like="STOCHk_").iloc[:, -1]
+        dser = st.filter(like="STOCHd_").iloc[:, -1]
+        if len(kser) < 2 or len(dser) < 2:
+            return out
+        k0, d0 = float(kser.iloc[-1]), float(dser.iloc[-1])
+        k1, d1 = float(kser.iloc[-2]), float(dser.iloc[-2])
+
+        cross = "Flat"
+        if np.isfinite(k0) and np.isfinite(d0) and np.isfinite(k1) and np.isfinite(d1):
+            if k1 <= d1 and k0 > d0:
+                cross = "Up"
+            elif k1 >= d1 and k0 < d0:
+                cross = "Down"
+
+        os_up = bool(np.isfinite(k1) and np.isfinite(k0) and k1 < gate_long and k0 >= gate_long and k0 > d0)
+        long_ok = bool(np.isfinite(k0) and np.isfinite(d0) and k0 > d0 and k0 >= gate_long)
+
+        comm = f"Stoch: {cross}{' OS-up' if os_up else ''} (K {k0:.0f}, D {d0:.0f})" if np.isfinite(k0) and np.isfinite(d0) else "Stoch: n/a"
+        out.update({"StochK": k0, "StochD": d0, "StochCross": cross,
+                    "Stoch_OS_Up": os_up, "Stoch_Long_OK": long_ok, "Stoch_Commentary": comm})
+        return out
+    except Exception:
+        return out
+# --- END Stochastic helper ---
 
 if __name__ == "__main__":
     main()
