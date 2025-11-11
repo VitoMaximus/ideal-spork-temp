@@ -716,6 +716,15 @@ def main():
         if bool(ind.get("GapChase_OK")):            mul *= 1.05   # momentum day boost
         if bool(ind.get("Stoch_Long_OK")):          mul *= 1.05   # stochastic in favor
         priority = round(priority * mul, 1)
+        # Build notes explaining priority adjustments
+        reasons = []
+        if bool(ind.get("Squeeze")):                reasons.append("squeeze +10%")
+        if bool(ind.get("Earnings_Window_Flag")):   reasons.append("earnings -15%")
+        if ind.get("RSI_OK") is False:              reasons.append("RSI -10%")
+        if bool(ind.get("GapChase_OK")):            reasons.append("gap+vol +5%")
+        if bool(ind.get("Stoch_Long_OK")):          reasons.append("stoch +5%")
+        priority_notes = "; ".join(reasons) if reasons else "none"
+
         if args.guard == "SAFE":
             priority = max(0.0, min(100.0, priority + (5.0 if guard_bias > 0 else -10.0)))
         elif args.guard == "HARD":
@@ -774,6 +783,7 @@ def main():
             "M_Commentary": "M: " + str(monthly_regime) + ". Px vs EMA21m: " + (f"{pct(px, EMA21m):+.1f}%" if pd.notna(EMA21m) else "n/a") + ".",  
             "MTF_Compare": f"D/W value-line gaps: {pct(px, ema21):+.1f}% / " + (f"{pct(px, EMA21w):+.1f}%" if pd.notna(EMA21w) else "n/a") + f" - Regimes {emaD}/{weekly_regime}",
             "Priority": round(priority,1),
+            "Priority_Notes": priority_notes,
             "Entry1": entry1, "Entry2": entry2, "Entry3": entry3, "T1": exit1, "T2": exit2, "Stop": stop,
             "D_Layer": dl1, "D_Zone_Lo": dlo, "D_Zone_Hi": dhi,
             "W_Layer": wl1, "W_Zone_Lo": wlo, "W_Zone_Hi": whi,
@@ -809,6 +819,7 @@ def main():
 
         expert_rows.append({
             "Ticker": t, "Description": d, "Priority": round(priority,1),
+            "Priority_Notes": priority_notes,
             "EMA_Regime": emaD, "Weekly_Regime": weekly_regime,
             "Signal_Age": ind.get("Signal_Age"), "Fresh_Cross": ind.get("Fresh_Cross"),
             "Open": ind.get("Open"), "High": ind.get("High"), "Low": ind.get("Low"), "Close": px,
