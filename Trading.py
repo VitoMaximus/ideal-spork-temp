@@ -593,6 +593,18 @@ def main():
         monthly_regime, EMA21m = _monthly_regime_and_ema21(df_full)
         ema21 = ind.get("EMA21"); atr = ind.get("ATR"); atrp = ind.get("ATR%")
         volratio = ind.get("VolRatio_20d"); udvr = ind.get("UDVR(20d)")
+        # --- BB Squeeze & Band Position ---
+        bb_th = get_asset_profile(t).get("bb_squeeze_ratio_th", 0.85) if 'get_asset_profile' in globals() else 0.85
+        bb = _bb_features(df_full, length=20, std=2.0, squeeze_ratio_th=bb_th)
+        ind.update({
+            "BB_Width": bb["BB_Width"],
+            "BB_Width_MA20": bb["BB_Width_MA20"],
+            "BB_Width_Ratio": bb["BB_Width_Ratio"],
+            "BB_Pos": bb["BB_Pos"],
+            "Squeeze": bb["Squeeze"],
+            "Priority_Squeeze": bb["Priority_Squeeze"],
+            "BB_Commentary": bb["BB_Commentary"],
+        })
         is_etf = _is_etf(t, d, info); is_crypto = _is_crypto(t, d)
         pe   = info.get("trailingPE", np.nan) if (not is_etf and not is_crypto) else np.nan
         epsg = info.get("earningsGrowth", np.nan); epsg = epsg * 100.0 if pd.notna(epsg) else np.nan
@@ -807,3 +819,46 @@ def main():
 
 if __name__ == "__main__":
     main()
+# --- BB Squeeze + Band Position helper ---
+from typing import Dict, Any
+def _bb_features(df: "pd.DataFrame", length: int = 20, std: float = 2.0, squeeze_ratio_th: float = 0.85) -> Dict[str, Any]:
+    out = {"BB_Upper": np.nan, "BB_Lower": np.nan, "BB_Middle": np.nan, "BB_Width": np.nan,
+           "BB_Width_MA20": np.nan, "BB_Width_Ratio": np.nan, "BB_Pos": np.nan,
+           "Squeeze": False, "Priority_Squeeze": np.nan, "BB_Commentary": "BB: n/a"}
+    try:
+        if df is None or df.empty or len(df) < 25:
+            return out
+        bb = ta.bbands(df["Close"], length=length, std=std)
+        if bb is None or bb.empty:
+            return out
+        upper = bb.filter(like="BBU_").iloc[:, -1]
+        middle = bb.filter(like="BBM_").iloc[:, -1]
+        lower  = bb.filter(like="BBL_").iloc[:, -1]
+        width_series = bb.filter(like="BBB_").iloc[:, -1]
+        pos_series   = bb.filter(like="BBP_").iloc[:, -1]
+        width_ma20 = ta.sma(width_series, length=20)
+
+        def f(x): 
+            try: return float(x)
+            except Exception: return np.nan
+
+        u = f(upper.iloc[-1]); m = f(middle.iloc[-1]); l = f(lower.iloc[-1])
+        w = f(width_series.iloc[-1]); wma = f(width_ma20.iloc[-1]) if width_ma20 is not None else np.nan
+        pos = f(pos_series.iloc[-1])
+
+        ratio = (w / wma) if (pd.notna(w) and pd.notna(wma) and wma != 0) else np.nan
+        squeeze = bool(pd.notna(ratio) and ratio <= squeeze_ratio_th)
+        pr = float(np.clip((1.0 - (ratio - 0.5) / 1.0), 0.0, 1.0)) if pd.notna(ratio) else np.nan
+
+        hint_bits = []
+        if pd.notna(ratio): hint_bits.append(f"width {ratio:0.2f}× 20dma")
+        if pd.notna(pos):   hint_bits.append(f"pos {pos:0.2f}")
+        hint = f"BB: {'SQUEEZE' if squeeze else 'no squeeze'} (" + ", ".join(hint_bits) + ")" if hint_bits else "BB: n/a"
+
+        out.update({"BB_Upper": u, "BB_Lower": l, "BB_Middle": m, "BB_Width": w,
+                    "BB_Width_MA20": wma, "BB_Width_Ratio": ratio, "BB_Pos": pos,
+                    "Squeeze": squeeze, "Priority_Squeeze": pr, "BB_Commentary": hint})
+        return out
+    except Exception:
+        return out
+# --- END helper ---
