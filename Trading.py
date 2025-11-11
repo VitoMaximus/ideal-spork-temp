@@ -817,8 +817,6 @@ def main():
             print(f"XLSX skipped ({e}). Install xlsxwriter to enable Excel export.")
     print("Done.")
 
-if __name__ == "__main__":
-    main()
 # --- BB Squeeze + Band Position helper ---
 from typing import Dict, Any
 def _bb_features(df: "pd.DataFrame", length: int = 20, std: float = 2.0, squeeze_ratio_th: float = 0.85) -> Dict[str, Any]:
@@ -862,3 +860,7 @@ def _bb_features(df: "pd.DataFrame", length: int = 20, std: float = 2.0, squeeze
     except Exception:
         return out
 # --- END helper ---
+
+if __name__ == "__main__":
+    main()
+
