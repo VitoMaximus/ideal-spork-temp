@@ -640,7 +640,6 @@ def main():
             if above: dl1 = min(above, key=lambda v: abs(v-px))
         zone_k = _zone_k_from_atrp(atrp)
         ind.update({"ZoneK": zone_k, "LadderScale": zone_k})
-        ind.update({"ZoneK": zone_k, "LadderScale": zone_k})
         dlo = dl1 - zone_k*atr if pd.notna(dl1) and pd.notna(atr) else np.nan
         dhi = dl1 + zone_k*atr if pd.notna(dl1) and pd.notna(atr) else np.nan
 
@@ -770,11 +769,14 @@ def main():
             "Entry1": entry1, "Entry2": entry2, "Entry3": entry3, "T1": exit1, "T2": exit2, "Stop": stop,
             "D_Layer": dl1, "D_Zone_Lo": dlo, "D_Zone_Hi": dhi,
             "W_Layer": wl1, "W_Zone_Lo": wlo, "W_Zone_Hi": whi,
+            "BB_Width": ind.get("BB_Width"), "BB_Width_MA20": ind.get("BB_Width_MA20"), "BB_Width_Ratio": ind.get("BB_Width_Ratio"), "BB_Pos": ind.get("BB_Pos"), "Squeeze": ind.get("Squeeze"), "Priority_Squeeze": ind.get("Priority_Squeeze"),
+            "StochK": ind.get("StochK"), "StochD": ind.get("StochD"), "StochCross": ind.get("StochCross"), "Stoch_OS_Up": ind.get("Stoch_OS_Up"), "Stoch_Long_OK": ind.get("Stoch_Long_OK"),
+            "Earnings_Window_Flag": ind.get("Earnings_Window_Flag"), "EarningsDays": ind.get("EarningsDays"),
+            "GapATR": ind.get("GapATR"), "GapATR_Thresh": ind.get("GapATR_Thresh"), "VolRatio_Thresh": ind.get("VolRatio_Thresh"), "GapChase_OK": ind.get("GapChase_OK"),
+            "RSI_Gate": ind.get("RSI_Gate"), "RSI_OK": ind.get("RSI_OK"),
             "DataMode": DataMode, "AsOf": asof, "Session": session, "DelayMin": delay,
             "AdjustedHistory": True, "Live_Delta%": Live_Delta_pct,
             "At_Res1_Zone_LIVE": At_Res1_Zone_LIVE, "ZoneK": ind.get("ZoneK"), "LadderScale": ind.get("LadderScale"),
-            "ZoneK": ind.get("ZoneK"), "LadderScale": ind.get("LadderScale"),
-            "T1_Hit": T1_Hit, "T2_Hit": T2_Hit, "Stop_Hit": Stop_Hit,
             "E1_Hit": E1_Hit, "E2_Hit": E2_Hit, "E3_Hit": E3_Hit,
             "PremarketGapPct": PremarketGapPct, "EarningsInDays": EarningsInDays,
             "Ladder_Sanity": ladder_note,
@@ -820,6 +822,7 @@ def main():
             "W_Layer": wl1, "W_Zone_Lo": wlo, "W_Zone_Hi": whi,
             "D_AVWAP_H": D_AVWAP_H, "D_AVWAP_L": D_AVWAP_L, "W_AVWAP_H": W_AVWAP_H, "W_AVWAP_L": W_AVWAP_L,
             "PE": (info.get("trailingPE", np.nan) if (not _is_etf(t, d, info) and not _is_crypto(t, d)) else np.nan), "EPS_Growth_Pct": ((info.get("earningsGrowth", np.nan) * 100.0) if pd.notna(info.get("earningsGrowth", np.nan)) else np.nan),
+            "ZoneK": ind.get("ZoneK"), "LadderScale": ind.get("LadderScale"),
             "DataMode": DataMode, "AsOf": asof, "Session": session, "DelayMin": delay,
             "AdjustedHistory": True, "Live_Delta%": Live_Delta_pct, "At_Res1_Zone_LIVE": At_Res1_Zone_LIVE,
             "T1_Hit": T1_Hit, "T2_Hit": T2_Hit, "Stop_Hit": Stop_Hit, "E1_Hit": E1_Hit, "E2_Hit": E2_Hit, "E3_Hit": E3_Hit,
