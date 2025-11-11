@@ -640,6 +640,7 @@ def main():
             if above: dl1 = min(above, key=lambda v: abs(v-px))
         zone_k = _zone_k_from_atrp(atrp)
         ind.update({"ZoneK": zone_k, "LadderScale": zone_k})
+        ind.update({"ZoneK": zone_k, "LadderScale": zone_k})
         dlo = dl1 - zone_k*atr if pd.notna(dl1) and pd.notna(atr) else np.nan
         dhi = dl1 + zone_k*atr if pd.notna(dl1) and pd.notna(atr) else np.nan
 
@@ -772,6 +773,7 @@ def main():
             "DataMode": DataMode, "AsOf": asof, "Session": session, "DelayMin": delay,
             "AdjustedHistory": True, "Live_Delta%": Live_Delta_pct,
             "At_Res1_Zone_LIVE": At_Res1_Zone_LIVE, "ZoneK": ind.get("ZoneK"), "LadderScale": ind.get("LadderScale"),
+            "ZoneK": ind.get("ZoneK"), "LadderScale": ind.get("LadderScale"),
             "T1_Hit": T1_Hit, "T2_Hit": T2_Hit, "Stop_Hit": Stop_Hit,
             "E1_Hit": E1_Hit, "E2_Hit": E2_Hit, "E3_Hit": E3_Hit,
             "PremarketGapPct": PremarketGapPct, "EarningsInDays": EarningsInDays,
