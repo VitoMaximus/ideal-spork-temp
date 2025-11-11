@@ -594,7 +594,7 @@ def main():
         ema21 = ind.get("EMA21"); atr = ind.get("ATR"); atrp = ind.get("ATR%")
         volratio = ind.get("VolRatio_20d"); udvr = ind.get("UDVR(20d)")
         # --- BB Squeeze & Band Position ---
-        bb_th = get_asset_profile(t).get("bb_squeeze_ratio_th", 0.85) if 'get_asset_profile' in globals() else 0.85
+        bb_th = get_asset_profile(t, d, atrp).get("bb_squeeze_ratio_th", 0.85) if 'get_asset_profile' in globals() else 0.85
         bb = _bb_features(df_full, length=20, std=2.0, squeeze_ratio_th=bb_th)
         ind.update({
             "BB_Width": bb["BB_Width"],
