@@ -593,6 +593,15 @@ def main():
         monthly_regime, EMA21m = _monthly_regime_and_ema21(df_full)
         ema21 = ind.get("EMA21"); atr = ind.get("ATR"); atrp = ind.get("ATR%")
         volratio = ind.get("VolRatio_20d"); udvr = ind.get("UDVR(20d)")
+        # --- Earnings proximity guard (±N days to next earnings) ---
+        edays = ind.get("EarningsInDays")
+        ewin = get_asset_profile(t, d, atrp).get("earnings_window_days", 5) if 'get_asset_profile' in globals() else 5
+        eflag = bool(pd.notna(edays) and edays <= ewin)
+        ind.update({
+            "Earnings_Window_Flag": eflag,
+            "EarningsDays": edays,
+            "Earnings_Commentary": (f"Earnings in {int(edays)}d — reduced weight" if (eflag and pd.notna(edays)) else "Earnings: clear"),
+        })
         # --- Stochastic (14,3,3) ---
         prof = get_asset_profile(t, d, atrp) if 'get_asset_profile' in globals() else {}
         st_gate = prof.get("stoch_long_gate", 20)
@@ -743,6 +752,7 @@ def main():
             "Novice_Action_Long": long_term,
             "BB_Commentary": ind.get("BB_Commentary"),
             "Stoch_Commentary": ind.get("Stoch_Commentary"),
+            "Earnings_Commentary": ind.get("Earnings_Commentary"),
             "W_Commentary": f"W: {weekly_regime}. Px vs EMA21w: " + (f"{((px/(EMA21w)-1.0)*100.0):+.1f}%" if pd.notna(EMA21w) else "n/a") + ".",
             "M_Commentary": "M: " + str(monthly_regime) + ". Px vs EMA21m: " + (f"{pct(px, EMA21m):+.1f}%" if pd.notna(EMA21m) else "n/a") + ".",  
             "MTF_Compare": f"D/W value-line gaps: {pct(px, ema21):+.1f}% / " + (f"{pct(px, EMA21w):+.1f}%" if pd.notna(EMA21w) else "n/a") + f" - Regimes {emaD}/{weekly_regime}",
@@ -798,7 +808,7 @@ def main():
             "D_Layer": dl1, "D_Zone_Lo": dlo, "D_Zone_Hi": dhi,
             "W_Layer": wl1, "W_Zone_Lo": wlo, "W_Zone_Hi": whi,
             "D_AVWAP_H": D_AVWAP_H, "D_AVWAP_L": D_AVWAP_L, "W_AVWAP_H": W_AVWAP_H, "W_AVWAP_L": W_AVWAP_L,
-            "PE": pe, "EPS_Growth_Pct": epsg, "BB_Width": ind.get("BB_Width"), "BB_Width_MA20": ind.get("BB_Width_MA20"), "BB_Width_Ratio": ind.get("BB_Width_Ratio"), "BB_Pos": ind.get("BB_Pos"), "Squeeze": ind.get("Squeeze"), "Priority_Squeeze": ind.get("Priority_Squeeze"), "StochK": ind.get("StochK"), "StochD": ind.get("StochD"), "StochCross": ind.get("StochCross"), "Stoch_OS_Up": ind.get("Stoch_OS_Up"), "Stoch_Long_OK": ind.get("Stoch_Long_OK"), "Expert_Commentary": _normalize_text(expert_comment),
+            "PE": pe, "EPS_Growth_Pct": epsg, "BB_Width": ind.get("BB_Width"), "BB_Width_MA20": ind.get("BB_Width_MA20"), "BB_Width_Ratio": ind.get("BB_Width_Ratio"), "BB_Pos": ind.get("BB_Pos"), "Squeeze": ind.get("Squeeze"), "Priority_Squeeze": ind.get("Priority_Squeeze"), "StochK": ind.get("StochK"), "StochD": ind.get("StochD"), "StochCross": ind.get("StochCross"), "Stoch_OS_Up": ind.get("Stoch_OS_Up"), "Stoch_Long_OK": ind.get("Stoch_Long_OK"), "Earnings_Window_Flag": ind.get("Earnings_Window_Flag"), "EarningsDays": ind.get("EarningsDays"), "Expert_Commentary": _normalize_text(expert_comment),
             "DataMode": DataMode, "AsOf": asof, "Session": session, "DelayMin": delay,
             "AdjustedHistory": True, "Live_Delta%": Live_Delta_pct, "At_Res1_Zone_LIVE": At_Res1_Zone_LIVE,
             "T1_Hit": T1_Hit, "T2_Hit": T2_Hit, "Stop_Hit": Stop_Hit, "E1_Hit": E1_Hit, "E2_Hit": E2_Hit, "E3_Hit": E3_Hit,
