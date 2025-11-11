@@ -564,12 +564,19 @@ def main():
             snap = _yf_intraday_snapshot(t, prepost=True)
 
         px = ind["Close"]; emaD = ind.get("EMA_Regime","Sell")
-        df_w = _resample(df_full, "W-FRI")
-        if df_w is not None and not df_w.empty and len(df_w) >= 10:
-            EMA21w = float(ta.ema(df_w["Close"], length=21).iloc[-1]) if len(df_w) >= 21 else np.nan
-            weekly_regime = "Buy" if (len(df_w) >= 34 and ta.ema(df_w["Close"], length=8).iloc[-1] >= ta.ema(df_w["Close"], length=34).iloc[-1]) else (ind.get("Weekly_Regime","Neutral"))
-        else:
-            EMA21w = np.nan; weekly_regime = ind.get("Weekly_Regime","Neutral")
+    df_w = _resample(df_full, "W-FRI")
+    if df_w is not None and not df_w.empty and len(df_w) >= 10:
+        EMA21w = float(ta.ema(df_w["Close"], length=21).iloc[-1]) if len(df_w) >= 21 else np.nan
+        weekly_regime = "Buy" if (
+           len(df_w) >= 34
+           and ta.ema(df_w["Close"], length=8).iloc[-1] >= ta.ema(df_w["Close"], length=34).iloc[-1]
+       ) else ind.get("Weekly_Regime","Neutral")
+    else:
+    EMA21w = np.nan
+    weekly_regime = ind.get("Weekly_Regime","Neutral")
+
+# Monthly regime (EMA8/34 on monthly bars)
+monthly_regime, EMA21m = _monthly_regime_and_ema21(df_full)
         ema21 = ind.get("EMA21"); atr = ind.get("ATR"); atrp = ind.get("ATR%")
         volratio = ind.get("VolRatio_20d"); udvr = ind.get("UDVR(20d)")
         is_etf = _is_etf(t, d, info); is_crypto = _is_crypto(t, d)
