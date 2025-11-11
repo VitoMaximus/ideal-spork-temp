@@ -602,33 +602,36 @@ def main():
             "EarningsDays": edays,
             "Earnings_Commentary": (f"Earnings in {int(edays)}d — reduced weight" if (eflag and pd.notna(edays)) else "Earnings: clear"),
         })
-        # --- Stochastic (14,3,3) ---
+        # --- Gap + Volume chase gate ---
+        prev_close = float(df_full["Close"].iloc[-2]) if (df_full is not None and len(df_full) >= 2) else np.nan
+        today_open = float(df_full["Open"].iloc[-1]) if (df_full is not None and len(df_full) >= 1) else np.nan
+        gap_abs = abs(today_open - prev_close) if (pd.notna(today_open) and pd.notna(prev_close)) else np.nan
+        atr_now = ind.get("ATR")
+        gap_atr = (gap_abs / atr_now) if (pd.notna(gap_abs) and pd.notna(atr_now) and atr_now > 0) else np.nan
+
         prof = get_asset_profile(t, d, atrp) if 'get_asset_profile' in globals() else {}
-        st_gate = prof.get("stoch_long_gate", 20)
-        st = _stoch_features(df_full, k=14, d=3, smooth_k=3, gate_long=st_gate)
+        gap_atr_th  = float(prof.get("gap_atr_th", 0.75))
+        volratio_th = float(prof.get("min_volratio_for_gap", 1.2))
+        volratio_now = ind.get("VolRatio_20d")
+
+        gap_ok = bool(pd.notna(gap_atr) and gap_atr >= gap_atr_th and pd.notna(volratio_now) and volratio_now >= volratio_th)
         ind.update({
-            "StochK": st["StochK"],
-            "StochD": st["StochD"],
-            "StochCross": st["StochCross"],
-            "Stoch_OS_Up": st["Stoch_OS_Up"],
-            "Stoch_Long_OK": st["Stoch_Long_OK"],
-            "Stoch_Commentary": st["Stoch_Commentary"],
+            "GapATR": gap_atr,
+            "GapATR_Thresh": gap_atr_th,
+            "VolRatio_Thresh": volratio_th,
+            "GapChase_OK": gap_ok,
+            "Gap_Commentary": (f"GapChase: {'OK' if gap_ok else 'skip'} (gap {gap_atr:.2f}×ATR, vol {volratio_now:.2f}×)" if (pd.notna(gap_atr) and pd.notna(volratio_now)) else "GapChase: n/a"),
         })
-        # --- BB Squeeze & Band Position ---
-        bb_th = get_asset_profile(t, d, atrp).get("bb_squeeze_ratio_th", 0.85) if 'get_asset_profile' in globals() else 0.85
-        bb = _bb_features(df_full, length=20, std=2.0, squeeze_ratio_th=bb_th)
+
+        # --- RSI gate (profile-based) ---
+        rsi_val = ind.get("RSI(14)")
+        rsi_gate = float(prof.get("rsi_gate_long", 45))
+        rsi_ok = bool(pd.notna(rsi_val) and rsi_val >= rsi_gate)
         ind.update({
-            "BB_Width": bb["BB_Width"],
-            "BB_Width_MA20": bb["BB_Width_MA20"],
-            "BB_Width_Ratio": bb["BB_Width_Ratio"],
-            "BB_Pos": bb["BB_Pos"],
-            "Squeeze": bb["Squeeze"],
-            "Priority_Squeeze": bb["Priority_Squeeze"],
-            "BB_Commentary": bb["BB_Commentary"],
+            "RSI_Gate": rsi_gate,
+            "RSI_OK": rsi_ok,
+            "RSI_Commentary": (f"RSI {rsi_val:.0f} vs gate {int(rsi_gate)} → {'OK' if rsi_ok else 'low'}" if pd.notna(rsi_val) else "RSI: n/a"),
         })
-        is_etf = _is_etf(t, d, info); is_crypto = _is_crypto(t, d)
-        pe   = info.get("trailingPE", np.nan) if (not is_etf and not is_crypto) else np.nan
-        epsg = info.get("earningsGrowth", np.nan); epsg = epsg * 100.0 if pd.notna(epsg) else np.nan
 
         pivH_d = _pivot_highs(df_full["High"].tail(180), lookback=3, tol=1e-6)
         dl1 = np.nan
@@ -700,6 +703,9 @@ def main():
             band_text = ""
 
         row_tmp = {"EMA_Regime": emaD, "Weekly_Regime": weekly_regime, "RSI(14)": ind.get("RSI(14)"), "ADX(14)": ind.get("ADX(14)"), "MACD_Hist_Pos": ind.get("MACD_Hist_Pos"), "VolRatio_20d": volratio, "UDVR(20d)": udvr, "Breakout20": ind.get("Breakout20"), "Ticker": t, "Description": d, "ATR%": atrp}
+        # derive asset flags before priority (guard)
+        is_etf = _is_etf(t, d, info)
+        is_crypto = _is_crypto(t, d)
         priority = compute_priority(row_tmp, is_etf=is_etf)
         if args.guard == "SAFE":
             priority = max(0.0, min(100.0, priority + (5.0 if guard_bias > 0 else -10.0)))
@@ -753,6 +759,8 @@ def main():
             "BB_Commentary": ind.get("BB_Commentary"),
             "Stoch_Commentary": ind.get("Stoch_Commentary"),
             "Earnings_Commentary": ind.get("Earnings_Commentary"),
+            "Gap_Commentary": ind.get("Gap_Commentary"),
+            "RSI_Commentary": ind.get("RSI_Commentary"),
             "W_Commentary": f"W: {weekly_regime}. Px vs EMA21w: " + (f"{((px/(EMA21w)-1.0)*100.0):+.1f}%" if pd.notna(EMA21w) else "n/a") + ".",
             "M_Commentary": "M: " + str(monthly_regime) + ". Px vs EMA21m: " + (f"{pct(px, EMA21m):+.1f}%" if pd.notna(EMA21m) else "n/a") + ".",  
             "MTF_Compare": f"D/W value-line gaps: {pct(px, ema21):+.1f}% / " + (f"{pct(px, EMA21w):+.1f}%" if pd.notna(EMA21w) else "n/a") + f" - Regimes {emaD}/{weekly_regime}",
@@ -808,7 +816,7 @@ def main():
             "D_Layer": dl1, "D_Zone_Lo": dlo, "D_Zone_Hi": dhi,
             "W_Layer": wl1, "W_Zone_Lo": wlo, "W_Zone_Hi": whi,
             "D_AVWAP_H": D_AVWAP_H, "D_AVWAP_L": D_AVWAP_L, "W_AVWAP_H": W_AVWAP_H, "W_AVWAP_L": W_AVWAP_L,
-            "PE": pe, "EPS_Growth_Pct": epsg, "BB_Width": ind.get("BB_Width"), "BB_Width_MA20": ind.get("BB_Width_MA20"), "BB_Width_Ratio": ind.get("BB_Width_Ratio"), "BB_Pos": ind.get("BB_Pos"), "Squeeze": ind.get("Squeeze"), "Priority_Squeeze": ind.get("Priority_Squeeze"), "StochK": ind.get("StochK"), "StochD": ind.get("StochD"), "StochCross": ind.get("StochCross"), "Stoch_OS_Up": ind.get("Stoch_OS_Up"), "Stoch_Long_OK": ind.get("Stoch_Long_OK"), "Earnings_Window_Flag": ind.get("Earnings_Window_Flag"), "EarningsDays": ind.get("EarningsDays"), "Expert_Commentary": _normalize_text(expert_comment),
+            "PE": (info.get("trailingPE", np.nan) if (not _is_etf(t, d, info) and not _is_crypto(t, d)) else np.nan), "EPS_Growth_Pct": ((info.get("earningsGrowth", np.nan) * 100.0) if pd.notna(info.get("earningsGrowth", np.nan)) else np.nan),
             "DataMode": DataMode, "AsOf": asof, "Session": session, "DelayMin": delay,
             "AdjustedHistory": True, "Live_Delta%": Live_Delta_pct, "At_Res1_Zone_LIVE": At_Res1_Zone_LIVE,
             "T1_Hit": T1_Hit, "T2_Hit": T2_Hit, "Stop_Hit": Stop_Hit, "E1_Hit": E1_Hit, "E2_Hit": E2_Hit, "E3_Hit": E3_Hit,
