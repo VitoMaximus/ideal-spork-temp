@@ -708,6 +708,14 @@ def main():
         is_etf = _is_etf(t, d, info)
         is_crypto = _is_crypto(t, d)
         priority = compute_priority(row_tmp, is_etf=is_etf)
+        # --- Priority blending (light touch) ---
+        mul = 1.0
+        if bool(ind.get("Squeeze")):                mul *= 1.10   # squeeze boost
+        if bool(ind.get("Earnings_Window_Flag")):   mul *= 0.85   # earnings dampener
+        if ind.get("RSI_OK") is False:              mul *= 0.90   # RSI gate penalty
+        if bool(ind.get("GapChase_OK")):            mul *= 1.05   # momentum day boost
+        if bool(ind.get("Stoch_Long_OK")):          mul *= 1.05   # stochastic in favor
+        priority = round(priority * mul, 1)
         if args.guard == "SAFE":
             priority = max(0.0, min(100.0, priority + (5.0 if guard_bias > 0 else -10.0)))
         elif args.guard == "HARD":
