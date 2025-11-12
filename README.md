@@ -134,3 +134,8 @@ print("Missing:", sorted(need-hdr))
 PY
 \`\`\`
 
+
+## Tests
+```bash
+source .venv/bin/activate && python -m pytest -q
+```
