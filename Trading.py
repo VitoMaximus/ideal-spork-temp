@@ -707,8 +707,16 @@ def main():
         # derive asset flags before priority (guard)
         is_etf = _is_etf(t, d, info)
         is_crypto = _is_crypto(t, d)
+        # Env-toggle to demonstrate blending on a single ticker (set BLEND_DEBUG=AAPL, etc.)
+        import os as _os
+        if _os.getenv("BLEND_DEBUG","") == t:
+            ind.update({"Squeeze": True, "GapChase_OK": True, "Stoch_Long_OK": True})
+        # Env-toggle to demonstrate blending on a single ticker (set BLEND_DEBUG=AAPL, etc.)
+        import os as _os
+        if _os.getenv("BLEND_DEBUG","") == t:
+            ind.update({"Squeeze": True, "GapChase_OK": True, "Stoch_Long_OK": True})
         priority = compute_priority(row_tmp, is_etf=is_etf)
-        # --- Priority blending (light touch) ---
+# --- Priority blending (light touch) ---
         mul = 1.0
         if bool(ind.get("Squeeze")):                mul *= 1.10   # squeeze boost
         if bool(ind.get("Earnings_Window_Flag")):   mul *= 0.85   # earnings dampener
@@ -716,6 +724,7 @@ def main():
         if bool(ind.get("GapChase_OK")):            mul *= 1.05   # momentum day boost
         if bool(ind.get("Stoch_Long_OK")):          mul *= 1.05   # stochastic in favor
         priority = round(priority * mul, 1)
+        ind["Priority_Mult"] = round(mul, 2)
         # Build notes explaining priority adjustments
         reasons = []
         if bool(ind.get("Squeeze")):                reasons.append("squeeze +10%")
@@ -816,6 +825,9 @@ def main():
             avgvol20 = float(ta.sma(df_full["Volume"], length=20).iloc[-1]) if "Volume" in df_full.columns else np.nan
         except Exception:
             avgvol20 = np.nan
+        # Normalize gating flags to explicit booleans for CSV export
+        for _k in ("Squeeze","Earnings_Window_Flag","RSI_OK","GapChase_OK","Stoch_Long_OK"):
+            ind[_k] = bool(ind.get(_k, False))
 
         expert_rows.append({
             "Ticker": t, "Description": d, "Priority": round(priority,1),
@@ -842,6 +854,8 @@ def main():
             "D_AVWAP_H": D_AVWAP_H, "D_AVWAP_L": D_AVWAP_L, "W_AVWAP_H": W_AVWAP_H, "W_AVWAP_L": W_AVWAP_L,
             "PE": (info.get("trailingPE", np.nan) if (not _is_etf(t, d, info) and not _is_crypto(t, d)) else np.nan), "EPS_Growth_Pct": ((info.get("earningsGrowth", np.nan) * 100.0) if pd.notna(info.get("earningsGrowth", np.nan)) else np.nan),
             "ZoneK": ind.get("ZoneK"), "LadderScale": ind.get("LadderScale"),
+            "Priority_Mult": ind.get("Priority_Mult"),
+            "Squeeze": ind.get("Squeeze"), "Earnings_Window_Flag": ind.get("Earnings_Window_Flag"), "RSI_OK": ind.get("RSI_OK"), "GapChase_OK": ind.get("GapChase_OK"), "Stoch_Long_OK": ind.get("Stoch_Long_OK"), "TrailActive": ind.get("TrailActive"), "TrailStop": ind.get("TrailStop"), "TrailMult": ind.get("TrailMult"), "TrailReason": ind.get("TrailReason"),
             "DataMode": DataMode, "AsOf": asof, "Session": session, "DelayMin": delay,
             "AdjustedHistory": True, "Live_Delta%": Live_Delta_pct, "At_Res1_Zone_LIVE": At_Res1_Zone_LIVE,
             "T1_Hit": T1_Hit, "T2_Hit": T2_Hit, "Stop_Hit": Stop_Hit, "E1_Hit": E1_Hit, "E2_Hit": E2_Hit, "E3_Hit": E3_Hit,
