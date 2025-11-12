@@ -3,3 +3,5 @@ __pycache__/
 .cache_ti/
 *.xlsx
 *.csv
+Ticker_Tech_Indicators_V9_*.csv
+Trading.py.bak.*
